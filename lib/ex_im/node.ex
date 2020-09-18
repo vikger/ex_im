@@ -10,33 +10,76 @@ defmodule ExIm.Node do
     GenServer.start_link(__MODULE__, nodes, name: __MODULE__)
   end
 
+  def write(table, key, value) do
+    GenServer.call(__MODULE__, {:write, table, key, value})
+  end
+
+  def read(table, key) do
+    GenServer.call(__MODULE__, {:read, table, key})
+  end
+
+  def delete(table, key) do
+    GenServer.call(__MODULE__, {:delete, table, key})
+  end
+
   def sync_receive(data) do
     GenServer.call(__MODULE__, {:sync_receive, data})
   end
 
-  def init(:dynamic) do
+  def init(%{env: env, nodes: :dynamic} = arg) do
     Storage.init()
-    sync(Node.list())
-    {:ok, %{nodes: :dynamic}}
+    if env == :distributed, do: sync(Node.list())
+    {:ok, arg}
   end
 
-  def init(nodes) when is_list(nodes) do
-    case node() do
-      :nonode@nohost ->
-        {:stop, :normal}
-      _ ->
-        Storage.init()
-        Enum.each(nodes, fn node -> Node.monitor(node, true) end)
-        active_nodes = Enum.filter(nodes, &Node.connect/1)
-        sync(active_nodes)
-        {:ok, %{nodes: nodes}}
+  def init(%{env: env, nodes: nodes} = arg) when is_list(nodes) do
+    Storage.init()
+
+    if env == :distributed do
+      Enum.each(nodes, fn node -> Node.monitor(node, true) end)
+      active_nodes = Enum.filter(nodes, &Node.connect/1)
+      sync(active_nodes)
     end
+
+    {:ok, arg}
   end
 
   def handle_call({:sync_receive, data}, _from, state) do
     Logger.info("sync receive #{inspect(data)}")
-    # resolve conflicts
+    resolve(get_local_data(), data)
     {:reply, get_local_data(), state}
+  end
+
+  def handle_call({:write, table, key, value}, _from, %{nodes: :dynamic} = state) do
+    Enum.each([node() | Node.list()], fn node ->
+      :rpc.call(node, Storage, :write, [table, key, value])
+    end)
+
+    Storage.write(table, key, value)
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:write, table, key, value}, _from, %{nodes: nodes} = state)
+      when is_list(nodes) do
+    Enum.each(nodes, fn node -> :rpc.call(node, Storage, :write, [table, key, value]) end)
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:read, table, key}, _from, state) do
+    {:reply, Storage.read(table, key), state}
+  end
+
+  def handle_call({:delete, table, key}, _from, %{nodes: :dynamic} = state) do
+    Enum.each([node() | Node.list()], fn node ->
+      :rpc.call(node, Storage, :delete, [table, key])
+    end)
+
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:delete, table, key}, _from, %{nodes: nodes} = state) when is_list(nodes) do
+    Enum.each(nodes, fn node -> :rpc.call(node, Storage, :delete, [table, key]) end)
+    {:reply, :ok, state}
   end
 
   def handle_info({:nodedown, node}, state) do
@@ -44,10 +87,10 @@ defmodule ExIm.Node do
     {:noreply, state}
   end
 
-#  def handle_info({:nodeup, node}, state) do
-#    Logger.info("Node up #{inspect(node)}")
-#    {:noreply, state}
-#  end
+  def handle_info({:nodeup, node}, state) do
+    Logger.info("Node up #{inspect(node)}")
+    {:noreply, state}
+  end
 
   def handle_info(msg, state) do
     Logger.error("Unexpected message: #{inspect(msg)}")
@@ -56,7 +99,10 @@ defmodule ExIm.Node do
 
   defp sync(nodes) do
     local_data = get_local_data() |> Enum.sort()
-    Enum.map(nodes -- [node()], fn node -> :rpc.call(node, ExIm.Node, :sync_receive, [get_local_data()]) end)
+
+    Enum.map(nodes -- [node()], fn node ->
+      :rpc.call(node, ExIm.Node, :sync_receive, [get_local_data()])
+    end)
     |> Enum.each(fn node_data -> resolve(local_data, Enum.sort(node_data)) end)
   end
 
@@ -91,7 +137,6 @@ defmodule ExIm.Node do
   end
 
   defp resolve(_, []) do
-    IO.inspect(get_local_data())
     :ok
   end
 end

@@ -23,7 +23,7 @@ defmodule ExIm.MixProject do
   defp deps do
     [
       {:local_cluster, "~> 1.2", only: [:test]}
-#      {:ex_unit_clustered_case, "~> 0.1"}
+      #      {:ex_unit_clustered_case, "~> 0.1"}
     ]
   end
 end

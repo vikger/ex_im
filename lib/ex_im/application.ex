@@ -5,15 +5,19 @@ defmodule ExIm.Application do
 
   def start(_type, _args) do
     nodes = Application.get_env(:ex_im, :nodes, :dynamic)
-    children =
+
+    env =
       case node() do
         :nonode@nohost ->
-          []
+          :local
+
         _ ->
-          [
-            {ExIm.Node, nodes}
-          ]
+          :distributed
       end
+
+    children = [
+      {ExIm.Node, %{nodes: nodes, env: env}}
+    ]
 
     opts = [strategy: :one_for_one, name: ExIm.Supervisor]
     Supervisor.start_link(children, opts)
