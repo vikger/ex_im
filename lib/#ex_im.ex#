@@ -1,0 +1,9 @@
+defmodule ExIm do
+  @moduledoc """
+  Documentation for `ExIm`.
+  """
+
+  def new(table) do
+    
+  end
+end
