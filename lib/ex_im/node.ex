@@ -98,6 +98,7 @@ defmodule ExIm.Node do
   end
 
   defp sync(nodes) do
+    Logger.info("Sync nodes")
     local_data = get_local_data() |> Enum.sort()
 
     Enum.map(nodes -- [node()], fn node ->
@@ -114,12 +115,21 @@ defmodule ExIm.Node do
     resolve(local, remote)
   end
 
-  defp resolve([{table, key, _, true} | local], [{table, key, _, false} | remote]) do
+  defp resolve([{table, key, {_, lversion, _}} | local], [{table, key, {_, rversion, _}} | remote])
+       when lversion > rversion do
     resolve(local, remote)
   end
 
-  defp resolve([{table, key, _, false} | local], [{table, key, _, true} | remote]) do
-    Storage.delete(table, key)
+  defp resolve([{table, key, {_, lversion, _}} | local], [
+         {table, key, {rvalue, rversion, rdeleted}} | remote
+       ])
+       when lversion < rversion do
+    Storage.raw_write(table, key, rvalue, rversion, rdeleted)
+    resolve(local, remote)
+  end
+
+  defp resolve([{table, key, {_, version, _}} | local], [{table, key, {_, version, _}} | remote]) do
+    Logger.error("Value confilct table #{inspect(table)} key #{inspect(key)}")
     resolve(local, remote)
   end
 
@@ -127,8 +137,8 @@ defmodule ExIm.Node do
     resolve(local, [y | remote])
   end
 
-  defp resolve(local, [{table, key, value, false} | remote]) do
-    Storage.write(table, key, value)
+  defp resolve(local, [{table, key, {value, version, deleted}} | remote]) do
+    Storage.raw_write(table, key, value, version, deleted)
     resolve(local, remote)
   end
 

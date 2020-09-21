@@ -1,126 +1,109 @@
 defmodule ExIm.Storage.Process do
+  use GenServer
+
   def init() do
-    Process.register(spawn(fn -> loop() end), __MODULE__)
+    start_link(nil)
+  end
+
+  def start_link(arg) do
+    GenServer.start_link(__MODULE__, arg, name: __MODULE__)
+  end
+
+  def init(_) do
+    {:ok, %{}}
   end
 
   def read_all() do
-    call(:read_all)
+    GenServer.call(__MODULE__, :read_all)
   end
 
   def tables() do
-    call(:tables)
+    GenServer.call(__MODULE__, :tables)
   end
 
   def write(table, key, value) do
-    call({:write, table, key, value})
+    GenServer.call(__MODULE__, {:write, table, key, value})
+  end
+
+  def raw_write(table, key, value, version, deleted) do
+    GenServer.call(__MODULE__, {:raw_write, table, key, value, version, deleted})
   end
 
   def read(table, key) do
-    call({:read, table, key})
+    GenServer.call(__MODULE__, {:read, table, key})
   end
 
   def delete(table, key) do
-    call({:delete, table, key})
+    GenServer.call(__MODULE__, {:delete, table, key})
   end
 
-  def call(request) do
-    send(__MODULE__, {self(), request})
+  def handle_call(:read_all, _from, state) do
+    reply =
+      Enum.map(Map.keys(state), fn {table, key} ->
+        {table, key, Enum.at(state[{table, key}], 0)}
+      end)
 
-    receive do
-      {:storage_process, reply} -> reply
-    end
+    {:reply, reply, state}
   end
 
-  def send_reply(pid, reply) do
-    send(pid, {:storage_process, reply})
+  def handle_call(:tables, _from, state) do
+    reply =
+      Enum.map(Map.keys(state), fn {table, _key} -> table end)
+      |> Enum.uniq()
+
+    {:reply, reply, state}
   end
 
-  def loop() do
-    receive do
-      {from, :read_all} ->
-        reply =
-          Process.get()
-          |> Enum.map(fn {{table, key}, values} ->
-            Enum.map(values, fn {value, deleted} -> {table, key, value, deleted} end)
-          end)
-          |> List.flatten()
+  def handle_call({:write, table, key, value}, _from, state) do
+    new_state =
+      case state[{table, key}] do
+        nil ->
+          Map.put(state, {table, key}, [{value, 1, false}])
 
-        send_reply(from, reply)
-        loop()
+        [{old_value, version, _deleted} | values] ->
+          Map.put(state, {table, key}, [
+            {value, version + 1, false},
+            {old_value, version, true} | values
+          ])
+      end
 
-      {from, :tables} ->
-        reply =
-          Process.get()
-          |> Enum.map(fn {{table, _}, _} -> table end)
-          |> Enum.uniq()
+    {:reply, :ok, new_state}
+  end
 
-        send_reply(from, reply)
-        loop()
+  def handle_call({:raw_write, table, key, value, version, deleted}, _from, state) do
+    new_state = Map.put(state, {table, key}, [{value, version, deleted}])
+    {:reply, :ok, new_state}
+  end
 
-      {from, {:write, table, key, value}} ->
-        Process.get({table, key})
-        |> case do
-          nil ->
-            Process.put({table, key}, [{value, false}])
+  def handle_call({:read, table, key}, _form, state) do
+    reply =
+      case state[{table, key}] do
+        nil ->
+          {:error, :not_found}
 
-          values ->
-            new_values =
-              Enum.reduce(values, [], fn
-                {v, false}, acc -> [{v, true} | acc]
-                deleted, acc -> [deleted | acc]
-              end)
+        [{value, _version, false} | _] ->
+          {:ok, value}
 
-            Process.put({table, key}, [{value, false} | new_values])
-        end
+        [{_value, _Version, true} | _] ->
+          {:error, :not_found}
+      end
 
-        send_reply(from, :ok)
-        loop()
+    {:reply, reply, state}
+  end
 
-      {from, {:read, table, key}} ->
-        reply =
-          Process.get({table, key})
-          |> case do
-            nil ->
-              {:error, :not_found}
+  def handle_call({:delete, table, key}, _from, state) do
+    new_state =
+      case state[{table, key}] do
+        nil ->
+          state
 
-            values ->
-              Enum.filter(values, fn
-                {_, false} -> true
-                _ -> false
-              end)
-              |> case do
-                [{value, _}] ->
-                  {:ok, value}
+        [{_value, _version, true} | _] ->
+          state
 
-                [] ->
-                  {:error, :not_found}
-              end
-          end
+        [{value, version, false} | values] ->
+          Map.put(state, {table, key}, [{value, version, true} | values])
+      end
 
-        send_reply(from, reply)
-        loop()
-
-      {from, {:delete, table, key}} ->
-        Process.get({table, key})
-        |> case do
-          nil ->
-            :noop
-
-          values ->
-            new_values =
-              Enum.reduce(values, [], fn
-                {v, false}, acc ->
-                  [{v, true} | acc]
-
-                other, acc ->
-                  [other | acc]
-              end)
-
-            Process.put({table, key}, new_values)
-        end
-
-        send_reply(from, :ok)
-        loop()
-    end
+    {:reply, :ok, new_state}
   end
 end

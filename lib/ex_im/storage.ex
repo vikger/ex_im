@@ -17,6 +17,10 @@ defmodule ExIm.Storage do
     backend().write(table, key, value)
   end
 
+  def raw_write(table, key, value, version, deleted) do
+    backend().raw_write(table, key, value, version, deleted)
+  end
+
   def read(table, key) do
     backend().read(table, key)
   end
