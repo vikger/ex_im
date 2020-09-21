@@ -1,18 +1,19 @@
 defmodule ExIm do
   @moduledoc """
-  Documentation for `ExIm`.
+  ExIm external API.
   """
 
-  @doc """
-  Hello world.
+  alias ExIm.Node
 
-  ## Examples
+  def write(table, key, value) do
+    Node.write(table, key, value)
+  end
 
-      iex> ExIm.hello()
-      :world
+  def read(table, key) do
+    Node.read(table, key)
+  end
 
-  """
-  def hello do
-    :world
+  def delete(table, key) do
+    Node.delete(table, key)
   end
 end

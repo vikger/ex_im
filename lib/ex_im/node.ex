@@ -104,6 +104,10 @@ defmodule ExIm.Node do
     Enum.map(nodes -- [node()], fn node ->
       :rpc.call(node, ExIm.Node, :sync_receive, [get_local_data()])
     end)
+    |> Enum.filter(fn
+      {:badrpc, _} -> false
+      _ -> true
+    end)
     |> Enum.each(fn node_data -> resolve(local_data, Enum.sort(node_data)) end)
   end
 
