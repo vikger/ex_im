@@ -2,7 +2,8 @@ defmodule ExIm.Storage do
   @moduledoc ""
 
   def init() do
-    backend().init()
+    Application.get_env(:ex_im, :tables)
+    |> backend().init_tables()
   end
 
   def read_all() do

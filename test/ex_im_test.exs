@@ -4,12 +4,13 @@ defmodule ExImTest do
 
   test "write to random nodes" do
     nodes = LocalCluster.start_nodes("my-cluster", 3)
+    [table | _] = Application.get_env(:ex_im, :tables, [])
     records = 10000
 
     1..records
     |> Enum.each(fn n ->
       node = select_random_node(nodes)
-      :rpc.call(node, ExIm, :write, [n, n, n])
+      :rpc.call(node, ExIm, :write, [table, n, n])
     end)
 
     lengths =

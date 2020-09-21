@@ -3,7 +3,7 @@ defmodule ExIm do
   ExIm external API.
   """
 
-  alias ExIm.Node
+  alias ExIm.{Node, Storage}
 
   def write(table, key, value) do
     Node.write(table, key, value)
@@ -15,5 +15,9 @@ defmodule ExIm do
 
   def delete(table, key) do
     Node.delete(table, key)
+  end
+
+  def tables() do
+    Storage.tables()
   end
 end

@@ -1,7 +1,7 @@
 defmodule ExIm.Storage.Process do
   use GenServer
 
-  def init() do
+  def init_tables(_) do
     start_link(nil)
   end
 
