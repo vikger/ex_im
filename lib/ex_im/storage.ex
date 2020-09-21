@@ -30,6 +30,6 @@ defmodule ExIm.Storage do
   end
 
   defp backend() do
-    ExIm.Storage.Process
+    Application.get_env(:ex_im, :backend)
   end
 end
