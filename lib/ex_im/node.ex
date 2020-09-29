@@ -89,6 +89,7 @@ defmodule ExIm.Node do
 
   def handle_info({:nodeup, node}, state) do
     Logger.info("Node up #{inspect(node)}")
+    :rpc.call(node, ExIm.Node, :sync_receive, [get_local_data()])
     {:noreply, state}
   end
 
