@@ -60,12 +60,15 @@ defmodule ExIm.Storage.Dets do
   end
 
   def list(table) do
-    read_all()
-    |> Enum.filter(fn
-      {^table, key, {value, _, false}} -> true
-      _ -> false
-    end)
-    |> Enum.map(fn {table, key, {value, _, _}} -> {table, key, value} end)
+    values =
+      read_all()
+      |> Enum.filter(fn
+        {^table, _key, {_value, _, false}} -> true
+        _ -> false
+      end)
+      |> Enum.map(fn {table, key, {value, _, _}} -> {table, key, value} end)
+
+    {:ok, values}
   end
 
   defp full_table_name(table) do

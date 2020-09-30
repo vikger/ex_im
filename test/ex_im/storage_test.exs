@@ -28,6 +28,6 @@ defmodule ExIm.StorageTest do
     assert [{:test_table, :b, {:c, _, false}}] = module.read_all()
     module.write(:test_table, :b, :d)
     assert [{:test_table, :b, {:d, _, false}}] = module.read_all()
-    assert [{:test_table, :b, :d}] = module.list(:test_table)
+    assert {:ok, [{:test_table, :b, :d}]} = module.list(:test_table)
   end
 end

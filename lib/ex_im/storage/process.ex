@@ -135,6 +135,6 @@ defmodule ExIm.Storage.Process do
         _ -> true
       end)
 
-    {:reply, reply, state}
+    {:reply, {:ok, reply}, state}
   end
 end
