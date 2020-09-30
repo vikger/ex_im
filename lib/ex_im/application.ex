@@ -7,10 +7,10 @@ defmodule ExIm.Application do
     nodes = Application.get_env(:ex_im, :nodes, :dynamic)
 
     env =
-      if node() == :nonode@nohost do
-        :local
-      else
+      if nodes == :dynamic or Enum.member?(nodes, node()) do
         :distributed
+      else
+        :local
       end
 
     children = [
