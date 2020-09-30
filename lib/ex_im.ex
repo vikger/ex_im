@@ -18,7 +18,15 @@ defmodule ExIm do
   end
 
   def list(table) do
-    Storage.list(table)
+    Node.list(table)
+  end
+
+  def backup() do
+    Node.backup()
+  end
+
+  def restore(data) do
+    Storage.restore(data)
   end
 
   def tables() do

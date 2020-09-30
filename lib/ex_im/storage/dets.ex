@@ -6,7 +6,7 @@ defmodule ExIm.Storage.Dets do
   end
 
   def read_all() do
-    Enum.map(Application.get_env(:ex_im, :tables, []), fn table ->
+    Enum.map(tables(), fn table ->
       :dets.foldl(
         fn {key, value, version, deleted}, acc ->
           [{table, key, {value, version, deleted}} | acc]
@@ -69,6 +69,21 @@ defmodule ExIm.Storage.Dets do
       |> Enum.map(fn {_table, key, {value, _, _}} -> {key, value} end)
 
     {:ok, values}
+  end
+
+  def backup() do
+    {:ok, read_all() |> :erlang.term_to_binary()}
+  end
+
+  def restore(data) do
+    tables()
+    |> Enum.each(fn table -> :dets.delete_all_objects(full_table_name(table)) end)
+
+    data
+    |> :erlang.binary_to_term()
+    |> Enum.each(fn {table, key, {value, version, deleted}} ->
+      :dets.insert(full_table_name(table), {key, value, version, deleted})
+    end)
   end
 
   defp full_table_name(table) do

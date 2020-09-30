@@ -34,6 +34,14 @@ defmodule ExIm.Storage do
     backend().list(table)
   end
 
+  def backup() do
+    backend().backup()
+  end
+
+  def restore(data) do
+    backend().restore(data)
+  end
+
   defp backend() do
     Application.get_env(:ex_im, :backend)
   end

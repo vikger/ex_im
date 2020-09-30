@@ -26,6 +26,14 @@ defmodule ExIm.Node do
     GenServer.call(__MODULE__, {:list, table})
   end
 
+  def backup() do
+    GenServer.call(__MODULE__, :backup)
+  end
+
+  def restore(data) do
+    GenServer.call(__MODULE__, {:restore, data})
+  end
+
   def sync_receive(data) do
     GenServer.call(__MODULE__, {:sync_receive, data})
   end
@@ -55,11 +63,12 @@ defmodule ExIm.Node do
   end
 
   def handle_call({:write, table, key, value}, _from, %{nodes: :dynamic} = state) do
-    Enum.each([node() | Node.list()], fn node ->
+    Storage.write(table, key, value)
+
+    Enum.each(Node.list(), fn node ->
       :rpc.call(node, Storage, :write, [table, key, value])
     end)
 
-    Storage.write(table, key, value)
     {:reply, :ok, state}
   end
 
@@ -88,6 +97,21 @@ defmodule ExIm.Node do
 
   def handle_call({:list, table}, _from, state) do
     {:reply, Storage.list(table), state}
+  end
+
+  def handle_call(:backup, _from, state) do
+    {:reply, Storage.backup(), state}
+  end
+
+  def handle_call({:restore, data}, _from, %{nodes: :dynamic} = state) do
+    Storage.restore(data)
+    Enum.each(Node.list(), fn node -> :rpc.call(node, Storage, :restore, [data]) end)
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:restore, data}, _from, %{nodes: nodes} = state) when is_list(nodes) do
+    Enum.each(nodes, fn node -> :rpc.call(node, Storage, :restore, [data]) end)
+    {:reply, :ok, state}
   end
 
   def handle_info({:nodedown, node}, state) do

@@ -41,6 +41,14 @@ defmodule ExIm.Storage.Process do
     GenServer.call(__MODULE__, {:list, table})
   end
 
+  def backup() do
+    {:error, :not_implemented}
+  end
+
+  def restore(_data) do
+    {:error, :not_implemented}
+  end
+
   def handle_call(:read_all, _from, state) do
     reply =
       Enum.map(Map.keys(state), fn {table, key} ->
