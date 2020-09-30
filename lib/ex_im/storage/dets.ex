@@ -76,14 +76,20 @@ defmodule ExIm.Storage.Dets do
   end
 
   def restore(data) do
-    tables()
-    |> Enum.each(fn table -> :dets.delete_all_objects(full_table_name(table)) end)
+    try do
+      term_data = :erlang.binary_to_term(data)
 
-    data
-    |> :erlang.binary_to_term()
-    |> Enum.each(fn {table, key, {value, version, deleted}} ->
-      :dets.insert(full_table_name(table), {key, value, version, deleted})
-    end)
+      tables()
+      |> Enum.each(fn table -> :dets.delete_all_objects(full_table_name(table)) end)
+
+      term_data
+      |> Enum.each(fn {table, key, {value, version, deleted}} ->
+        :dets.insert(full_table_name(table), {key, value, version, deleted})
+      end)
+    rescue
+      _error ->
+        {:error, "invalid backup"}
+    end
   end
 
   defp full_table_name(table) do
