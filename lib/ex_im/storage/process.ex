@@ -37,6 +37,10 @@ defmodule ExIm.Storage.Process do
     GenServer.call(__MODULE__, {:delete, table, key})
   end
 
+  def list(table) do
+    GenServer.call(__MODULE__, {:list, table})
+  end
+
   def handle_call(:read_all, _from, state) do
     reply =
       Enum.map(Map.keys(state), fn {table, key} ->
@@ -105,5 +109,32 @@ defmodule ExIm.Storage.Process do
       end
 
     {:reply, :ok, new_state}
+  end
+
+  def handle_call({:list, table}, _from, state) do
+    reply =
+      Map.keys(state)
+      |> Enum.filter(fn
+        {^table, _} -> true
+        _ -> false
+      end)
+      |> Enum.map(fn {table, key} ->
+        case state[{table, key}] do
+          nil ->
+            nil
+
+          [{_, _, true} | _] ->
+            nil
+
+          [{value, _, false} | _] ->
+            {table, key, value}
+        end
+      end)
+      |> Enum.filter(fn
+        nil -> false
+        _ -> true
+      end)
+
+    {:reply, reply, state}
   end
 end

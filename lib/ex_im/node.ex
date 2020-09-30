@@ -22,6 +22,10 @@ defmodule ExIm.Node do
     GenServer.call(__MODULE__, {:delete, table, key})
   end
 
+  def list(table) do
+    GenServer.call(__MODULE__, {:list, table})
+  end
+
   def sync_receive(data) do
     GenServer.call(__MODULE__, {:sync_receive, data})
   end
@@ -80,6 +84,10 @@ defmodule ExIm.Node do
   def handle_call({:delete, table, key}, _from, %{nodes: nodes} = state) when is_list(nodes) do
     Enum.each(nodes, fn node -> :rpc.call(node, Storage, :delete, [table, key]) end)
     {:reply, :ok, state}
+  end
+
+  def handle_call({:list, table}, _from, state) do
+    {:reply, Storage.list(table), state}
   end
 
   def handle_info({:nodedown, node}, state) do

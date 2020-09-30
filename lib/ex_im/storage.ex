@@ -30,6 +30,10 @@ defmodule ExIm.Storage do
     backend().delete(table, key)
   end
 
+  def list(table) do
+    backend().list(table)
+  end
+
   defp backend() do
     Application.get_env(:ex_im, :backend)
   end

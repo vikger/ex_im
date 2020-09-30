@@ -17,6 +17,10 @@ defmodule ExIm do
     Node.delete(table, key)
   end
 
+  def list(table) do
+    Storage.list(table)
+  end
+
   def tables() do
     Storage.tables()
   end
