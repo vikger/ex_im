@@ -66,7 +66,7 @@ defmodule ExIm.Storage.Dets do
         {^table, _key, {_value, _, false}} -> true
         _ -> false
       end)
-      |> Enum.map(fn {table, key, {value, _, _}} -> {table, key, value} end)
+      |> Enum.map(fn {_table, key, {value, _, _}} -> {key, value} end)
 
     {:ok, values}
   end

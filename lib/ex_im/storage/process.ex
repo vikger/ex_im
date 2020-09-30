@@ -127,7 +127,7 @@ defmodule ExIm.Storage.Process do
             nil
 
           [{value, _, false} | _] ->
-            {table, key, value}
+            {key, value}
         end
       end)
       |> Enum.filter(fn
